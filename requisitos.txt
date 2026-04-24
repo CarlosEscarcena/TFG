@@ -1,0 +1,2 @@
+sudo raspi-config
+sudo apt install libi2c-dev

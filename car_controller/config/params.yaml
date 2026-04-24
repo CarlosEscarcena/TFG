@@ -1,0 +1,29 @@
+car_controller_node:
+  ros__parameters:
+
+    # ── Pines GPIO (numeración BCM) ─────────────────────────────
+    steering_pin: 12        # Servo de dirección  (PWM hardware)
+    throttle_pin: 19        # Motor ESC           (PWM hardware)
+
+    # ── Rango de pulsos PWM (microsegundos) ─────────────────────
+    # Estándar hobby: 1000–2000 µs, neutro 1500 µs
+    # Algunos servos/ESC usan 900–2100 µs → ajustar según hardware
+    pwm_min_us:     1000
+    pwm_neutral_us: 1500
+    pwm_max_us:     2000
+
+    # ── Normalización de /cmd_vel ────────────────────────────────
+    # Velocidad máxima que se mapeará a PWM_MAX.
+    # Si publicas valores en [-1,1] deja estos en 1.0.
+    # Si publicas en m/s reales, pon aquí la vel. máx. del coche.
+    max_linear_speed:  1.0
+    max_angular_speed: 1.0
+
+    # ── Inversión de canales ─────────────────────────────────────
+    # Cambia a true si el servo o ESC responden al revés
+    steering_inverted: false
+    throttle_inverted: false
+
+    # ── Watchdog ─────────────────────────────────────────────────
+    # Segundos sin recibir /cmd_vel antes de enviar neutro
+    cmd_vel_timeout: 0.5
