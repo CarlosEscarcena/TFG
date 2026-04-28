@@ -15,7 +15,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        # Argumentos sobreescribibles desde línea de comandos
         DeclareLaunchArgument('steering_pin',      default_value='12'),
         DeclareLaunchArgument('throttle_pin',      default_value='19'),
         DeclareLaunchArgument('cmd_vel_timeout',   default_value='0.5'),
@@ -36,7 +35,7 @@ def generate_launch_description():
                 }
             ],
             remappings=[
-                ('/cmd_vel', '/cmd_vel'),  # cambiar aquí si tu topic es diferente
+                ('/cmd_vel', '/cmd_vel'),  # Change the topic if needed
             ],
         ),
     ])

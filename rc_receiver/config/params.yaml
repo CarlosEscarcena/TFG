@@ -1,33 +1,28 @@
 rc_receiver_node:
   ros__parameters:
 
-    # ── Pines GPIO de entrada (BCM) ─────────────────────────────
-    throttle_pin: 13      # Canal aceleración del receptor RC
-    steering_pin: 17      # Canal dirección del receptor RC
+    # ── GPIO input pins (BCM) ───────
+    throttle_pin: 13      
+    steering_pin: 17      
 
-    # ── Rango PWM esperado del receptor (µs) ────────────────────
-    # Mide los valores reales de tu mando con:
-    #   ros2 topic echo /rc_receiver/raw_pwm
-    # y ajusta estos valores
-    pwm_min_us:  1000     # Stick al mínimo
-    pwm_mid_us:  1500     # Stick en centro (neutro)
-    pwm_max_us:  2000     # Stick al máximo
+    # ── Expected PWM range from the receiver (µs) ─────
+    pwm_min_us:  1000    
+    pwm_mid_us:  1500   #(neutral)
+    pwm_max_us:  2000     
 
-    # ── Zona muerta alrededor del neutro (µs) ───────────────────
-    # Evita que ruido pequeño mueva el coche cuando el stick está centrado
+    # ── Deadband around neutral (µs) ─────
     deadband_us: 30
 
-    # ── Velocidades máximas publicadas en /cmd_vel ───────────────
-    max_linear_speed:  1.0   # Multiplica la señal normalizada [-1,1]
+    # ── Maximum speeds published on /cmd_vel ───────
+    max_linear_speed:  1.0   
     max_angular_speed: 1.0
 
-    # ── Inversión de canales ─────────────────────────────────────
+    # ── Channel inversion ──────
     throttle_inverted: false
     steering_inverted: false
 
-    # ── Tasa de publicación de /cmd_vel ─────────────────────────
-    publish_rate: 50.0    # Hz (el receptor RC suele dar pulsos a 50 Hz)
+    # ── /cmd_vel publish rate ──────
+    publish_rate: 50.0    # Hz 
 
-    # ── Timeout de señal ─────────────────────────────────────────
-    # Si no llega ningún pulso en este tiempo → publica Twist vacío
-    signal_timeout: 0.5   # segundos
+    # ── Signal timeout ────────
+    signal_timeout: 0.5   # seconds

@@ -6,13 +6,12 @@
 namespace car_controller
 {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constructor
-// ─────────────────────────────────────────────────────────────────────────────
+
 CarControllerNode::CarControllerNode(const rclcpp::NodeOptions & options)
 : Node("car_controller_node", options)
 {
-  // ── Declarar y leer parámetros ──────────────────────────────────────────
+
+  // ───────────────── Read all the parameters ───────────────────
   this->declare_parameter<int>   ("steering_pin",      12);
   this->declare_parameter<int>   ("throttle_pin",      19);
   this->declare_parameter<int>   ("pwm_min_us",        PWM_MIN_US);
@@ -35,117 +34,114 @@ CarControllerNode::CarControllerNode(const rclcpp::NodeOptions & options)
   throttle_inverted_ = this->get_parameter("throttle_inverted").as_bool();
   cmd_vel_timeout_   = this->get_parameter("cmd_vel_timeout").as_double();
 
-  // ── Iniciar pigpio ──────────────────────────────────────────────────────
+
   initPigpio();
 
-  // ── Suscriptor /cmd_vel ─────────────────────────────────────────────────
   cmd_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
     "/cmd_vel",
     rclcpp::QoS(10),
     std::bind(&CarControllerNode::cmdVelCallback, this, std::placeholders::_1)
   );
 
-  // ── Publicador de estado PWM ────────────────────────────────────────────
   pwm_state_pub_ = this->create_publisher<std_msgs::msg::Float32MultiArray>(
     "/car_controller/pwm_state",
     rclcpp::QoS(10)
   );
 
-  // ── Watchdog (100 ms) ───────────────────────────────────────────────────
+  // Watchdog
   last_cmd_time_ = this->now();
   watchdog_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100),
     std::bind(&CarControllerNode::watchdogCallback, this)
   );
 
-  // ── Posición inicial: neutro ────────────────────────────────────────────
+  // Set to initial pose
   setPwm(static_cast<unsigned>(steering_pin_), pwm_neutral_us_);
   setPwm(static_cast<unsigned>(throttle_pin_), pwm_neutral_us_);
 
+  const char* pigpio_status;
+  if (hw_ok_) {
+    pigpio_status = "OK";
+  } else {
+    pigpio_status = "NOT WORKING";
+  }
+
   RCLCPP_INFO(
     this->get_logger(),
-    "CarControllerNode iniciado | steering_pin=%d | throttle_pin=%d | pigpio=%s",
-    steering_pin_, throttle_pin_, hw_ok_ ? "OK" : "SIMULADO"
+    "CarControllerNode running | steering_pin=%d | throttle_pin=%d | pigpio=%s",
+    steering_pin_, throttle_pin_, pigpio_status
   );
+
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Destructor — siempre dejar el coche parado
-// ─────────────────────────────────────────────────────────────────────────────
+
+// Destructor 
 CarControllerNode::~CarControllerNode()
 {
-  RCLCPP_INFO(this->get_logger(), "Apagando CarControllerNode...");
+  RCLCPP_INFO(this->get_logger(), "Shutting down CarControllerNode...");
 
+  // Set to neutral pose
   setPwm(static_cast<unsigned>(steering_pin_), pwm_neutral_us_);
   setPwm(static_cast<unsigned>(throttle_pin_), pwm_neutral_us_);
 
   if (hw_ok_ && pi_handle_ >= 0) {
-    // Apagar PWM antes de desconectar
+    // Disable PWM before disconnecting
     set_servo_pulsewidth(pi_handle_, static_cast<unsigned>(steering_pin_), 0);
     set_servo_pulsewidth(pi_handle_, static_cast<unsigned>(throttle_pin_), 0);
     pigpio_stop(pi_handle_);
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// initPigpio
-// ─────────────────────────────────────────────────────────────────────────────
+
+//InitPigpio
 void CarControllerNode::initPigpio()
 {
-  // pigpio_start(host, port) → conecta a pigpiod
-  // nullptr, nullptr → localhost:8888 (por defecto)
   pi_handle_ = pigpio_start(nullptr, nullptr);
 
   if (pi_handle_ < 0) {
     RCLCPP_WARN(
       this->get_logger(),
-      "No se pudo conectar a pigpiod (handle=%d). "
-      "Asegúrate de que 'pigpiod' está corriendo en el host. "
-      "Modo SIMULACIÓN activado.",
+      "Could not connect to pigpiod (handle=%d). "
+      "Make sure 'pigpiod' is running on the host. ",
       pi_handle_
     );
     return;
   }
 
-  // Configurar pines como salidas
+  // Configure pins as outputs
   set_mode(pi_handle_, static_cast<unsigned>(steering_pin_), PI_OUTPUT);
   set_mode(pi_handle_, static_cast<unsigned>(throttle_pin_), PI_OUTPUT);
 
   hw_ok_ = true;
-  RCLCPP_INFO(this->get_logger(), "pigpiod conectado correctamente (handle=%d).", pi_handle_);
+  RCLCPP_INFO(this->get_logger(), "pigpiod connected successfully (handle=%d).", pi_handle_);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// setPwm — envía pulso PWM en µs al pin
-// ─────────────────────────────────────────────────────────────────────────────
+
+//Sends a PWM pulse in µs to the given pin
 void CarControllerNode::setPwm(unsigned int pin, int pulse_us)
 {
-  const int clamped = static_cast<int>(
+  int clamped = static_cast<int>(
     clamp(static_cast<double>(pulse_us),
           static_cast<double>(pwm_min_us_),
           static_cast<double>(pwm_max_us_))
   );
 
   if (hw_ok_ && pi_handle_ >= 0) {
+
     int ret = set_servo_pulsewidth(pi_handle_, pin, static_cast<unsigned>(clamped));
+
     if (ret < 0) {
       RCLCPP_ERROR_THROTTLE(
         this->get_logger(), *this->get_clock(), 2000,
         "Error set_servo_pulsewidth(pin=%u, pulse=%d): %d", pin, clamped, ret
       );
     }
-  } else {
-    RCLCPP_DEBUG_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000,
-      "[SIM] pin=%u  pulso=%d µs", pin, clamped
-    );
-  }
+  } 
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// normalizedToUs — [-1,1] → [pwm_min, pwm_max] µs
-// ─────────────────────────────────────────────────────────────────────────────
-int CarControllerNode::normalizedToUs(double value) const
+
+// normalizedToµs — [-1,1] → [pwm_min, pwm_max] µs
+int CarControllerNode::normalizedToUs(double value)
 {
   value = clamp(value, -1.0, 1.0);
   double us;
@@ -157,38 +153,39 @@ int CarControllerNode::normalizedToUs(double value) const
   return static_cast<int>(std::round(us));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// clamp — utilidad inline
-// ─────────────────────────────────────────────────────────────────────────────
-double CarControllerNode::clamp(double v, double lo, double hi)
+
+double CarControllerNode::clamp(double value, double low, double high)
 {
-  return std::max(lo, std::min(hi, v));
+  return std::max(low, std::min(high, value));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// cmdVelCallback — suscriptor /cmd_vel
-// ─────────────────────────────────────────────────────────────────────────────
+
+// cmdVelCallback 
 void CarControllerNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
   last_cmd_time_ = this->now();
 
-  // Normalizar
+  // Normalise
   double throttle_norm = clamp(msg->linear.x  / max_linear_speed_,  -1.0, 1.0);
   double steering_norm = clamp(msg->angular.z / max_angular_speed_, -1.0, 1.0);
 
-  // Inversión opcional de canales
-  if (throttle_inverted_) { throttle_norm = -throttle_norm; }
-  if (steering_inverted_) { steering_norm = -steering_norm; }
+  // Inversion if needed
+  if (throttle_inverted_) { 
+    throttle_norm = -throttle_norm; 
+  }
+  if (steering_inverted_) { 
+    steering_norm = -steering_norm; 
+  }
 
-  // Convertir a µs
+  // Convert to µs
   const int throttle_us = normalizedToUs(throttle_norm);
   const int steering_us = normalizedToUs(steering_norm);
 
-  // Enviar PWM
+  // Send PWM
   setPwm(static_cast<unsigned>(throttle_pin_), throttle_us);
   setPwm(static_cast<unsigned>(steering_pin_), steering_us);
 
-  // Publicar estado (diagnóstico)
+  // Publish state 
   std_msgs::msg::Float32MultiArray state_msg;
   state_msg.data = {
     static_cast<float>(steering_us),
@@ -198,22 +195,17 @@ void CarControllerNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPt
   };
   pwm_state_pub_->publish(state_msg);
 
-  RCLCPP_DEBUG_THROTTLE(
-    this->get_logger(), *this->get_clock(), 200,
-    "CMD → throttle=%dµs (%.2f)  steering=%dµs (%.2f)",
-    throttle_us, throttle_norm, steering_us, steering_norm
-  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// watchdogCallback — para el coche si no llegan comandos
-// ─────────────────────────────────────────────────────────────────────────────
+
+// watchdogCallback — stops the car if no commands are recieved
 void CarControllerNode::watchdogCallback()
 {
-  const double elapsed =
+  double elapsed =
     (this->now() - last_cmd_time_).seconds();
 
   if (elapsed > cmd_vel_timeout_) {
+    //Stop the car
     setPwm(static_cast<unsigned>(steering_pin_), pwm_neutral_us_);
     setPwm(static_cast<unsigned>(throttle_pin_), pwm_neutral_us_);
   }
@@ -221,9 +213,6 @@ void CarControllerNode::watchdogCallback()
 
 }  // namespace car_controller
 
-// ─────────────────────────────────────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────────────────────────────────────
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
