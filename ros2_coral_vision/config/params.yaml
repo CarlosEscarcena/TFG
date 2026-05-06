@@ -1,0 +1,26 @@
+coral_vision_node:
+  ros__parameters:
+    # Ruta al modelo TFLite compilado para Edge TPU
+    # Descarga modelos en: https://coral.ai/models/
+    model_path: ""
+
+    # Ruta al archivo de etiquetas (una por línea)
+    labels_path: ""
+
+    # Tipo de tarea: "detection" o "classification"
+    task: "detection"
+
+    # Umbral de confianza mínima (0.0 - 1.0)
+    score_threshold: 0.5
+
+    # Topic de imágenes de entrada
+    input_topic: "/camera/image_raw"
+
+    # Topic de salida de resultados
+    output_topic: "/coral/image_detections"
+
+    # Publicar imagen anotada con bounding boxes
+    publish_annotated: true
+
+    # Usar Edge TPU hardware (false = inferencia en CPU, más lenta)
+    use_edgetpu: true
