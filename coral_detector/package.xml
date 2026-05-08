@@ -4,11 +4,11 @@
   <name>coral_detector</name>
   <version>0.1.0</version>
   <description>
-    Detección de objetos en tiempo real con Google Coral Edge TPU.
-    Suscribe a /image_raw y publica detecciones en /coral/detections
-    y la imagen anotada en /coral/image_detections.
+    Real-time object detection with Google Coral Edge TPU.
+    Subscribes to /image_raw and publishes detections on /coral/detections
+    and the annotated image on /coral/image_detections.
   </description>
-  <maintainer email="user@todo.todo">usuario</maintainer>
+  <maintainer email="c.escarcena.2021@alumnos.urjc.es">user</maintainer>
   <license>Apache-2.0</license>
 
   <exec_depend>rclpy</exec_depend>

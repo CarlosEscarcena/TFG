@@ -1,29 +1,4 @@
 #!/usr/bin/env python3
-"""
-detector_node.py
-
-Nodo ROS2 que detecta objetos en tiempo real usando la Google Coral Edge TPU.
-
-Dado que libedgetpu 16.0 en Debian Trixie tiene un bug con los modelos
-_postprocess_edgetpu.tflite, este nodo intenta cargar el modelo en la TPU
-y si falla hace fallback automático al modelo base corriendo en CPU+XNNPACK
-(4 hilos). El resultado es idéntico en ambos casos.
-
-Subscripciones:
-  /image_raw  (sensor_msgs/Image)
-
-Publicaciones:
-  /coral/detections        (vision_msgs/Detection2DArray)
-  /coral/image_detections  (sensor_msgs/Image)
-
-Parámetros:
-  model_path      : ruta al modelo .tflite
-  labels_path     : ruta al fichero de etiquetas
-  score_threshold : umbral mínimo de confianza (default: 0.40)
-  max_detections  : máximo de detecciones      (default: 10)
-  publish_image   : publicar imagen anotada    (default: true)
-  use_tpu         : intentar usar Edge TPU     (default: true)
-"""
 
 import ctypes
 import os
@@ -47,9 +22,9 @@ try:
 except ImportError:
     CV2_AVAILABLE = False
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 # Assets
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 MODEL_CPU_URL = (
     "https://github.com/google-coral/edgetpu/raw/master/test_data/"
     "ssd_mobilenet_v2_coco_quant_postprocess.tflite"
@@ -74,21 +49,21 @@ BOX_COLORS = [
 ]
 
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 # Helpers
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 
 def _download(url: str, dest: str, logger) -> bool:
     if os.path.exists(dest):
         return True
-    logger.info(f'Descargando {os.path.basename(dest)} ...')
+    logger.info(f'Downloading {os.path.basename(dest)} ...')
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     try:
         urllib.request.urlretrieve(url, dest)
-        logger.info(f'  → {dest}')
+        logger.info(f'  -> {dest}')
         return True
     except Exception as e:
-        logger.error(f'Error descargando {url}: {e}')
+        logger.error(f'Error downloading {url}: {e}')
         return False
 
 
@@ -110,16 +85,16 @@ def _load_labels(path: str) -> dict:
     return labels
 
 
-# ──────────────────────────────────────────────────────────────────
-# Nodo
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
+# Node
+# ------------------------------------------------------------------
 
 class CoralDetectorNode(Node):
 
     def __init__(self):
         super().__init__('coral_detector_node')
 
-        # ── Parámetros ────────────────────────────────────────────
+        # -- Parameters --------------------------------------------
         self.declare_parameter('model_path',      DEFAULT_MODEL_CPU)
         self.declare_parameter('labels_path',     DEFAULT_LABELS)
         self.declare_parameter('score_threshold', 0.40)
@@ -134,7 +109,7 @@ class CoralDetectorNode(Node):
         self.publish_image   = self.get_parameter('publish_image').value
         self.use_tpu         = self.get_parameter('use_tpu').value
 
-        # ── Publishers ────────────────────────────────────────────
+        # -- Publishers --------------------------------------------
         self.pub_detections = self.create_publisher(
             Detection2DArray, '/coral/detections', 10)
 
@@ -145,13 +120,13 @@ class CoralDetectorNode(Node):
             self.bridge = CvBridge()
         elif self.publish_image:
             self.get_logger().warn(
-                'cv_bridge/opencv no disponibles. publish_image desactivado.')
+                'cv_bridge/opencv not available. publish_image disabled.')
 
-        # ── Subscriber ────────────────────────────────────────────
+        # -- Subscriber --------------------------------------------
         self.sub_image = self.create_subscription(
             Image, '/camera/image_raw', self._image_callback, 10)
 
-        # ── Inicializar intérprete ────────────────────────────────
+        # -- Initialize interpreter --------------------------------
         self.interpreter = None
         self.labels      = {}
         self.model_w     = 300
@@ -160,22 +135,22 @@ class CoralDetectorNode(Node):
         self._init_interpreter()
 
         self.get_logger().info(
-            'Coral Detector listo. Esperando imágenes en camera/image_raw ...')
+            'Coral Detector ready. Waiting for images on /camera/image_raw ...')
 
-    # ── Inicialización ────────────────────────────────────────────
+    # -- Initialization --------------------------------------------
 
     def _init_interpreter(self):
-        # Etiquetas
+        # Labels
         if not _download(LABELS_URL, self.labels_path, self.get_logger()):
             return
         self.labels = _load_labels(self.labels_path)
-        self.get_logger().info(f'Etiquetas cargadas: {len(self.labels)} clases')
+        self.get_logger().info(f'Labels loaded: {len(self.labels)} classes')
 
-        # Modelo CPU siempre disponible como fallback
+        # CPU model always available as fallback
         if not _download(MODEL_CPU_URL, DEFAULT_MODEL_CPU, self.get_logger()):
             return
 
-        # ── Intentar TPU ──────────────────────────────────────────
+        # -- Try TPU -----------------------------------------------
         if self.use_tpu:
             try:
                 # ctypes.CDLL("libedgetpu.so.1", mode=ctypes.RTLD_GLOBAL)
@@ -183,7 +158,7 @@ class CoralDetectorNode(Node):
 
                 from pycoral.utils.edgetpu import make_interpreter
 
-                self.get_logger().info('Intentando cargar modelo en Edge TPU...')
+                self.get_logger().info('Trying to load model on Edge TPU...')
                 interp = make_interpreter(DEFAULT_MODEL_TPU)
                 interp.allocate_tensors()
 
@@ -198,15 +173,15 @@ class CoralDetectorNode(Node):
                 self.model_w     = w
                 self.using_tpu   = True
                 self.get_logger().info(
-                    f'✓ Edge TPU activa | input: {w}x{h} | '
-                    f'umbral: {self.score_threshold}')
+                    f'[ok] Edge TPU active | input: {w}x{h} | '
+                    f'threshold: {self.score_threshold}')
                 return
 
             except Exception as e:
                 self.get_logger().warn(
-                    f'Edge TPU no disponible ({e}). Usando CPU.')
+                    f'Edge TPU not available ({e}). Falling back to CPU.')
 
-        # ── CPU fallback ──────────────────────────────────────────
+        # -- CPU fallback ------------------------------------------
         self._load_cpu(DEFAULT_MODEL_CPU)
 
     def _load_cpu(self, model_path: str):
@@ -214,7 +189,7 @@ class CoralDetectorNode(Node):
             import tflite_runtime.interpreter as tflite
 
             self.get_logger().info(
-                f'Cargando modelo en CPU: {os.path.basename(model_path)}')
+                f'Loading model on CPU: {os.path.basename(model_path)}')
             interp = tflite.Interpreter(model_path, num_threads=4)
             interp.allocate_tensors()
 
@@ -229,19 +204,19 @@ class CoralDetectorNode(Node):
             self.model_w     = w
             self.using_tpu   = False
             self.get_logger().info(
-                f'✓ CPU (XNNPACK 4 hilos) | input: {w}x{h} | '
-                f'umbral: {self.score_threshold}')
+                f'[ok] CPU (XNNPACK 4 threads) | input: {w}x{h} | '
+                f'threshold: {self.score_threshold}')
 
         except Exception as e:
-            self.get_logger().error(f'Error cargando modelo CPU: {e}')
+            self.get_logger().error(f'Error loading CPU model: {e}')
 
-    # ── Callback imagen ───────────────────────────────────────────
+    # -- Image callback --------------------------------------------
 
     def _image_callback(self, msg: Image):
         if self.interpreter is None:
             return
 
-        # Convertir mensaje ROS a BGR
+        # Convert ROS message to BGR
         try:
             if CV2_AVAILABLE:
                 frame_bgr = self.bridge.imgmsg_to_cv2(
@@ -252,12 +227,12 @@ class CoralDetectorNode(Node):
                 if msg.encoding == 'rgb8':
                     frame_bgr = frame_bgr[:, :, ::-1]
         except Exception as e:
-            self.get_logger().warn(f'Error convirtiendo imagen: {e}')
+            self.get_logger().warn(f'Error converting image: {e}')
             return
 
         img_h, img_w = frame_bgr.shape[:2]
 
-        # Redimensionar a 300x300 RGB
+        # Resize to 300x300 RGB
         if CV2_AVAILABLE:
             resized   = cv2.resize(frame_bgr, (self.model_w, self.model_h))
             rgb_input = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
@@ -267,7 +242,7 @@ class CoralDetectorNode(Node):
             pil       = pil.resize((self.model_w, self.model_h))
             rgb_input = np.array(pil)
 
-        # ── Inferencia ────────────────────────────────────────────
+        # -- Inference ---------------------------------------------
         try:
             inp_details = self.interpreter.get_input_details()
 
@@ -282,11 +257,11 @@ class CoralDetectorNode(Node):
             self.interpreter.invoke()
 
         except Exception as e:
-            self.get_logger().warn(f'Error en inferencia: {e}')
+            self.get_logger().warn(f'Inference error: {e}')
             return
 
-        # ── Leer outputs ──────────────────────────────────────────
-        # Formato postprocess:
+        # -- Read outputs ------------------------------------------
+        # Postprocess output format:
         #   [0] boxes    (1, N, 4)  float32  [ymin,xmin,ymax,xmax] norm 0-1
         #   [1] classes  (1, N)     float32
         #   [2] scores   (1, N)     float32
@@ -309,10 +284,10 @@ class CoralDetectorNode(Node):
                     boxes, classes, scores, num_det, img_w, img_h)
 
         except Exception as e:
-            self.get_logger().warn(f'Error leyendo outputs: {e}')
+            self.get_logger().warn(f'Error reading outputs: {e}')
             return
 
-        # ── Publicar Detection2DArray ─────────────────────────────
+        # -- Publish Detection2DArray ------------------------------
         det_array        = Detection2DArray()
         det_array.header = msg.header
 
@@ -332,15 +307,15 @@ class CoralDetectorNode(Node):
 
         self.pub_detections.publish(det_array)
 
-        # Log consola
+        # Console log
         if detections:
             names = [
                 f'{self.labels.get(c, str(c))} {s:.0%}'
                 for c, s, *_ in detections
             ]
-            self.get_logger().info('Detectado: ' + ' | '.join(names))
+            self.get_logger().info('Detected: ' + ' | '.join(names))
 
-        # ── Imagen anotada ────────────────────────────────────────
+        # -- Annotated image ---------------------------------------
         if self.pub_image is not None and CV2_AVAILABLE and detections:
             annotated = frame_bgr.copy()
             for class_id, score, x0, y0, x1, y1 in detections:
@@ -365,10 +340,10 @@ class CoralDetectorNode(Node):
             ann_msg.header = msg.header
             self.pub_image.publish(ann_msg)
 
-    # ── Parseo de outputs ─────────────────────────────────────────
+    # -- Output parsing --------------------------------------------
 
     def _parse_cpu(self, boxes, classes, scores, num_det, img_w, img_h):
-        """Parsea outputs del modelo CPU postprocess."""
+        """Parse outputs from the CPU postprocess model."""
         results = []
         for i in range(min(num_det, self.max_detections)):
             score = float(scores[i])
@@ -384,7 +359,7 @@ class CoralDetectorNode(Node):
         return results
 
     def _parse_tpu(self, objects, img_w, img_h):
-        """Parsea objetos de pycoral.adapters.detect."""
+        """Parse objects from pycoral.adapters.detect."""
         results = []
         for obj in objects[:self.max_detections]:
             bbox = obj.bbox
@@ -398,9 +373,9 @@ class CoralDetectorNode(Node):
         return results
 
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 # Entrypoint
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 
 def main(args=None):
     rclpy.init(args=args)

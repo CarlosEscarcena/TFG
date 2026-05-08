@@ -50,7 +50,7 @@ private:
   void cmdVelCallback(const geometry_msgs::msg::Twist::SharedPtr msg);
   void watchdogCallback();
 
-  // ──────── ROS2 ──────────
+  // -------- ROS2 ----------
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pwm_state_pub_;
   rclcpp::TimerBase::SharedPtr watchdog_timer_;

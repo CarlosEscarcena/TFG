@@ -11,7 +11,7 @@ CarControllerNode::CarControllerNode(const rclcpp::NodeOptions & options)
 : Node("car_controller_node", options)
 {
 
-  // ───────────────── Read all the parameters ───────────────────
+  // ----------------- Read all the parameters -------------------
   this->declare_parameter<int>   ("steering_pin",      12);
   this->declare_parameter<int>   ("throttle_pin",      19);
   this->declare_parameter<int>   ("pwm_min_us",        PWM_MIN_US);
@@ -117,7 +117,7 @@ void CarControllerNode::initPigpio()
 }
 
 
-//Sends a PWM pulse in µs to the given pin
+//Sends a PWM pulse in us to the given pin
 void CarControllerNode::setPwm(unsigned int pin, int pulse_us)
 {
   int clamped = static_cast<int>(
@@ -140,7 +140,7 @@ void CarControllerNode::setPwm(unsigned int pin, int pulse_us)
 }
 
 
-// normalizedToµs — [-1,1] → [pwm_min, pwm_max] µs
+// normalizedToUs - [-1,1] -> [pwm_min, pwm_max] us
 int CarControllerNode::normalizedToUs(double value)
 {
   value = clamp(value, -1.0, 1.0);
@@ -177,7 +177,7 @@ void CarControllerNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPt
     steering_norm = -steering_norm; 
   }
 
-  // Convert to µs
+  // Convert to us
   const int throttle_us = normalizedToUs(throttle_norm);
   const int steering_us = normalizedToUs(steering_norm);
 
@@ -198,7 +198,7 @@ void CarControllerNode::cmdVelCallback(const geometry_msgs::msg::Twist::SharedPt
 }
 
 
-// watchdogCallback — stops the car if no commands are recieved
+// watchdogCallback - stops the car if no commands are recieved
 void CarControllerNode::watchdogCallback()
 {
   double elapsed =

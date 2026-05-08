@@ -1,22 +1,22 @@
 car_controller_node:
   ros__parameters:
 
-    # ── GPIO pins ────────────────────────────────────────────────
+    # -- GPIO pins ------------------------------------------------
     steering_pin: 12        # GPIO pin for the steering servo  (hardware PWM)
     throttle_pin: 19        # GPIO pin for the throttle ESC    (hardware PWM)
 
-    # ── PWM pulse widths (µs) ─────────────────────────────────────
+    # -- PWM pulse widths (us) -------------------------------------
     pwm_min_us:     1000    
     pwm_neutral_us: 1500    
     pwm_max_us:     2000    
 
-    # ── Speed normalisation ───────────────────────────────────────
+    # -- Speed normalisation ---------------------------------------
     max_linear_speed:  1.0  
     max_angular_speed: 1.0  
 
-    # ── Channel inversion ─────────────────────────────────────────
+    # -- Channel inversion -----------------------------------------
     steering_inverted: false  
     throttle_inverted: false  
 
-    # ── Watchdog ──────────────────────────────────────────────────
+    # -- Watchdog --------------------------------------------------
     cmd_vel_timeout: 0.5    # Seconds without a cmd_vel message before the car is stopped

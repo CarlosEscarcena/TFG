@@ -6,10 +6,10 @@
 namespace rc_receiver
 {
 
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Free C function called by pigpio on its internal thread.
 // Forwards the event to the node method using the user pointer.
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 static void gpioCallbackDispatch(
   int /*pi*/, unsigned gpio, unsigned level, uint32_t tick, void * user)
 {
@@ -22,7 +22,7 @@ static void gpioCallbackDispatch(
 RcReceiverNode::RcReceiverNode(const rclcpp::NodeOptions & options)
 : Node("rc_receiver_node", options)
 {
-  // ── Declare and load parameters ─────────
+  // -- Declare and load parameters ---------
   this->declare_parameter<int>   ("throttle_pin", 13);
   this->declare_parameter<int>   ("steering_pin", 17);
   this->declare_parameter<int>   ("pwm_min_us", PWM_MIN_US);
@@ -150,9 +150,9 @@ void RcReceiverNode::initPigpio()
 // Measures pulse width: time between rising and falling edge
 void RcReceiverNode::onGpioChange(unsigned gpio, unsigned level, uint32_t tick)
 {
-  // level=1 → rising edge  (start of pulse)
-  // level=0 → falling edge (end of pulse)
-  // level=2 → pigpio watchdog timeout (ignore)
+  // level=1 -> rising edge  (start of pulse)
+  // level=0 -> falling edge (end of pulse)
+  // level=2 -> pigpio watchdog timeout (ignore)
   if (level == 2) { return; }
 
   const bool is_throttle = (static_cast<int>(gpio) == throttle_pin_);
@@ -174,7 +174,7 @@ void RcReceiverNode::onGpioChange(unsigned gpio, unsigned level, uint32_t tick)
       rise_tick = steering_rise_tick_;
     }
 
-    int pulse_us = static_cast<int>(tick - rise_tick);  // difference in µs
+    int pulse_us = static_cast<int>(tick - rise_tick);  // difference in us
 
     // Discard out-of-range pulses (noise or glitches)
     if (pulse_us < 500 || pulse_us > 2500) { return; }
@@ -251,12 +251,12 @@ void RcReceiverNode::publishTimerCallback()
 
   RCLCPP_DEBUG_THROTTLE(
     this->get_logger(), *this->get_clock(), 500,
-    "RC → thr=%dµs (%.2f)  str=%dµs (%.2f)",
+    "RC -> thr=%dus (%.2f)  str=%dus (%.2f)",
     thr_us, throttle_norm, str_us, steering_norm);
 }
 
 
-// pulseToNormalized — maps a pulse width in µs to [-1, 1]
+// pulseToNormalized - maps a pulse width in us to [-1, 1]
 double RcReceiverNode::pulseToNormalized(
   int pulse_us, int min_us, int mid_us, int max_us) const
 {
@@ -269,9 +269,9 @@ double RcReceiverNode::pulseToNormalized(
   return clamp(norm, -1.0, 1.0);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// applyDeadband — forces output to 0 when the value is close to neutral
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// applyDeadband - forces output to 0 when the value is close to neutral
+// -----------------------------------------------------------------------------
 double RcReceiverNode::applyDeadband(double value, double deadband_norm)
 {
   // If the value is close enough to zero, treat it as zero

@@ -17,9 +17,9 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='usuario',
-    maintainer_email='user@todo.todo',
-    description='Detección de objetos con Google Coral Edge TPU y ROS2 Humble',
+    maintainer='user',
+    maintainer_email='c.escarcena.2021@alumnos.urjc.es',
+    description='Object detection with Google Coral Edge TPU and ROS2 Humble',
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={

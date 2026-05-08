@@ -32,7 +32,7 @@ public:
 
 private:
 
-  // ── Parameters ───────
+  // -- Parameters -------
   int    throttle_pin_;        
   int    steering_pin_;        
   int    pwm_min_us_;          
@@ -46,7 +46,7 @@ private:
   double publish_rate_;        
   double signal_timeout_;      
 
-  // ── Channel state ────────
+  // -- Channel state --------
   // Atomics ensure safe cross-thread access without a mutex
   std::atomic<int>      throttle_pulse_us_{PWM_MID_US};
   std::atomic<int>      steering_pulse_us_{PWM_MID_US};
@@ -57,7 +57,7 @@ private:
   uint32_t throttle_rise_tick_{0};
   uint32_t steering_rise_tick_{0};
 
-  // ── pigpio ──────
+  // -- pigpio ------
   int  pi_handle_{-1};   
   bool hw_ok_{false};  
 
@@ -65,7 +65,7 @@ private:
   int throttle_cb_id_{-1};
   int steering_cb_id_{-1};
 
-  // ── Funcions ──────
+  // -- Funcions ------
   void initPigpio();
   void publishTimerCallback();
 
@@ -74,7 +74,7 @@ private:
   static double clamp(double v, double lo, double hi);
   static double applyDeadband(double value, double deadband_norm);
 
-  // ── ROS2 ───────
+  // -- ROS2 -------
   //timestamp of the last valid pulse received per channel
   rclcpp::Time last_throttle_time_;
   rclcpp::Time last_steering_time_;

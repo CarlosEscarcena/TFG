@@ -1,28 +1,28 @@
 rc_receiver_node:
   ros__parameters:
 
-    # ── GPIO input pins (BCM) ───────
+    # -- GPIO input pins (BCM) -------
     throttle_pin: 13      
     steering_pin: 17      
 
-    # ── Expected PWM range from the receiver (µs) ─────
+    # -- Expected PWM range from the receiver (us) -----
     pwm_min_us:  1000    
     pwm_mid_us:  1500   #(neutral)
     pwm_max_us:  2000     
 
-    # ── Deadband around neutral (µs) ─────
+    # -- Deadband around neutral (us) -----
     deadband_us: 30
 
-    # ── Maximum speeds published on /cmd_vel ───────
+    # -- Maximum speeds published on /cmd_vel -------
     max_linear_speed:  1.0   
     max_angular_speed: 1.0
 
-    # ── Channel inversion ──────
+    # -- Channel inversion ------
     throttle_inverted: false
     steering_inverted: false
 
-    # ── /cmd_vel publish rate ──────
+    # -- /cmd_vel publish rate ------
     publish_rate: 50.0    # Hz 
 
-    # ── Signal timeout ────────
+    # -- Signal timeout --------
     signal_timeout: 0.5   # seconds

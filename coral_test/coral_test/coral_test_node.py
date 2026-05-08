@@ -10,7 +10,7 @@ Pasos que realiza:
   2. Descarga el modelo de prueba oficial de la Coral si no existe
   3. Ejecuta una inferencia de prueba con datos aleatorios
   4. Publica el resultado en /coral_test_result (std_msgs/String)
-  5. Imprime un diagnóstico claro en consola
+  5. Imprime un diagnostico claro en consola
 
 Uso:
   ros2 run coral_test coral_test_node
@@ -53,7 +53,7 @@ class CoralTestNode(Node):
     # ------------------------------------------------------------------
 
     def _download_model(self):
-        """Descarga el modelo de prueba si no está presente."""
+        """Descarga el modelo de prueba si no esta presente."""
         if os.path.exists(MODEL_PATH):
             self.get_logger().info(f'Modelo ya existe: {MODEL_PATH}')
             return True
@@ -84,7 +84,7 @@ class CoralTestNode(Node):
         if os.path.exists(pcie_path):
             return 'PCIe/M.2', pcie_path
         if os.path.exists(usb_path):
-            # Intento básico de detección por vendor ID (18d1 = Google)
+            # Intento basico de deteccion por vendor ID (18d1 = Google)
             try:
                 result = os.popen('lsusb 2>/dev/null | grep -i "18d1:9302\\|1a6e:089a"').read()
                 if result.strip():
@@ -102,15 +102,15 @@ class CoralTestNode(Node):
     def run_test(self):
         msg = String()
 
-        # ── 1. Importar pycoral ──────────────────────────────────────
-        self.get_logger().info('Verificando librería pycoral...')
+        # -- 1. Importar pycoral --------------------------------------
+        self.get_logger().info('Verificando libreria pycoral...')
         try:
             from pycoral.utils.edgetpu import make_interpreter
             from pycoral.adapters import common as coral_common
         except ImportError:
             error = (
-                'pycoral NO está instalado.\n'
-                'Instálalo con:\n'
+                'pycoral NO esta instalado.\n'
+                'Instalalo con:\n'
                 '  pip3 install pycoral\n'
                 'O sigue: https://coral.ai/software/'
             )
@@ -119,28 +119,28 @@ class CoralTestNode(Node):
             self.publisher_.publish(msg)
             return False
 
-        self.get_logger().info('pycoral encontrado ✓')
+        self.get_logger().info('pycoral encontrado [ok]')
 
-        # ── 2. Detectar dispositivo ──────────────────────────────────
+        # -- 2. Detectar dispositivo ----------------------------------
         dev_type, dev_path = self._detect_coral_device()
         if dev_type:
             self.get_logger().info(f'Dispositivo Coral detectado: {dev_type}  ({dev_path})')
         else:
             self.get_logger().warn(
-                'No se detectó dispositivo Coral en /dev/apex_0 ni /dev/bus/usb.\n'
-                'Asegúrate de que:\n'
-                '  - El dispositivo esté conectado\n'
+                'No se detecto dispositivo Coral en /dev/apex_0 ni /dev/bus/usb.\n'
+                'Asegurate de que:\n'
+                '  - El dispositivo este conectado\n'
                 '  - El contenedor Docker tenga acceso: --privileged o --device=/dev/...\n'
-                '  - Los drivers estén instalados en el host'
+                '  - Los drivers esten instalados en el host'
             )
 
-        # ── 3. Descargar modelo ──────────────────────────────────────
+        # -- 3. Descargar modelo --------------------------------------
         if not self._download_model():
             msg.data = '[FALLO] No se pudo obtener el modelo de prueba.'
             self.publisher_.publish(msg)
             return False
 
-        # ── 4. Cargar intérprete Edge TPU ────────────────────────────
+        # -- 4. Cargar interprete Edge TPU ----------------------------
         self.get_logger().info('Cargando modelo en la Edge TPU...')
         try:
             interpreter = make_interpreter(MODEL_PATH)
@@ -149,8 +149,8 @@ class CoralTestNode(Node):
             error = (
                 f'Error al cargar el modelo en la Edge TPU: {e}\n'
                 'Posibles causas:\n'
-                '  - El dispositivo Coral no está accesible desde Docker\n'
-                '    Añade --privileged o --device=/dev/apex_0 al docker run\n'
+                '  - El dispositivo Coral no esta accesible desde Docker\n'
+                '    Anade --privileged o --device=/dev/apex_0 al docker run\n'
                 '  - Drivers no instalados en el host Raspberry Pi'
             )
             self.get_logger().error(error)
@@ -158,9 +158,9 @@ class CoralTestNode(Node):
             self.publisher_.publish(msg)
             return False
 
-        self.get_logger().info('Modelo cargado en Edge TPU ✓')
+        self.get_logger().info('Modelo cargado en Edge TPU [ok]')
 
-        # ── 5. Inferencia de prueba ──────────────────────────────────
+        # -- 5. Inferencia de prueba ----------------------------------
         self.get_logger().info('Ejecutando inferencia de prueba con datos aleatorios...')
         try:
             input_details = interpreter.get_input_details()
